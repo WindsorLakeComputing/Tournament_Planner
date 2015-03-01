@@ -4,6 +4,7 @@
 #
 
 import psycopg2
+import bleach
 
 
 def connect():
@@ -13,15 +14,35 @@ def connect():
 
 def deleteMatches():
     """Remove all the match records from the database."""
+    db = connect()
+    c = db.cursor()
+    sql = "TRUNCATE match" 
 
+    c.execute(sql)
+    db.commit()
+    db.close() 
 
 def deletePlayers():
     """Remove all the player records from the database."""
+    db = connect()
+    c = db.cursor()
+    sql = "TRUNCATE player" 
 
+    c.execute(sql)
+    db.commit()
+    db.close() 
 
 def countPlayers():
     """Returns the number of players currently registered."""
+    db = connect()
+    c = db.cursor()
+    sql = "select count(*) from player"  
 
+    c.execute(sql)
+    results = c.fetchall()
+    db.commit()
+    db.close()
+    return results 
 
 def registerPlayer(name):
     """Adds a player to the tournament database.
@@ -33,6 +54,21 @@ def registerPlayer(name):
       name: the player's full name (need not be unique).
     """
 
+    attrs = {
+    '*': ['style']
+    }
+    tags = ['p', 'em', 'strong']
+    styles = ['color', 'font-weight'] 
+    cleaned_text = bleach.clean(name, tags, attrs, styles)
+    db = connect()
+    c = db.cursor()
+    sql = "insert into player (player_name) values (%s)"
+
+    args = (cleaned_text,)
+    c.execute(sql, args)
+    db.commit()
+    db.close()    
+     
 
 def playerStandings():
     """Returns a list of the players and their win records, sorted by wins.
@@ -56,8 +92,15 @@ def reportMatch(winner, loser):
       winner:  the id number of the player who won
       loser:  the id number of the player who lost
     """
- 
- 
+    if isinstance(winner, int) and isinstance(loser, int):
+    	db = connect()
+    	c = db.cursor()
+    	sql = ('INSERT INTO match (winner, loser) values (%s, %s); ')
+	
+    	c.execute(sql, (winner, loser))
+    	db.commit()
+    	db.close()    
+     
 def swissPairings():
     """Returns a list of pairs of players for the next round of a match.
   
@@ -74,4 +117,10 @@ def swissPairings():
         name2: the second player's name
     """
 
-
+if __name__ == '__main__':
+    registerPlayer("Ben Bush")
+    registerPlayer("Calvin Hobbs")
+    print countPlayers()
+    #deletePlayers()
+    reportMatch(1,2)
+    print countPlayers()
