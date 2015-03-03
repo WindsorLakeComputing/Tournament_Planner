@@ -16,7 +16,7 @@ def deleteMatches():
     """Remove all the match records from the database."""
     db = connect()
     c = db.cursor()
-    sql = "TRUNCATE match" 
+    sql = "truncate match; ALTER SEQUENCE id RESTART WITH 1; " 
 
     c.execute(sql)
     db.commit()
@@ -26,7 +26,7 @@ def deletePlayers():
     """Remove all the player records from the database."""
     db = connect()
     c = db.cursor()
-    sql = "TRUNCATE player" 
+    sql = "truncate player; ALTER SEQUENCE id RESTART WITH 1; "  
 
     c.execute(sql)
     db.commit()
@@ -83,6 +83,28 @@ def playerStandings():
         wins: the number of matches the player has won
         matches: the number of matches the player has played
     """
+    db = connect()
+    c = db.cursor()
+    sql = ('SELECT m.winner, p.player_name, m.wins, tm.total_matches '
+           'FROM ( '
+                'SELECT winner, count(match.winner) as wins '
+                'FROM match '
+                'GROUP BY match.winner '
+                'ORDER BY wins DESC '
+                ') m LEFT JOIN player p ON m.winner = p.id '
+                'LEFT JOIN view_total_matches tm ON m.winner = tm.player; ')
+    a_sql=('SELECT tw.winner, sum(tw.wins + tl.loses) as total_games '
+          'FROM view_total_wins tw, view_total_loses tl '
+	  'WHERE tw.winner = tl.loser '
+          'GROUP BY tw.winner; ')
+    b_sql=('SELECT player, total_matches FROM view_total_matches;')
+    c.execute(sql)
+    results = c.fetchall()
+    print results
+    for result in results:
+	print result
+    db.commit()
+    db.close()
 
 
 def reportMatch(winner, loser):
@@ -99,8 +121,11 @@ def reportMatch(winner, loser):
 	
     	c.execute(sql, (winner, loser))
     	db.commit()
-    	db.close()    
-     
+    	db.close()
+    
+    else:
+	raise Exception("winner and loser must both be ints")
+  
 def swissPairings():
     """Returns a list of pairs of players for the next round of a match.
   
@@ -120,7 +145,11 @@ def swissPairings():
 if __name__ == '__main__':
     registerPlayer("Ben Bush")
     registerPlayer("Calvin Hobbs")
-    print countPlayers()
-    #deletePlayers()
+    registerPlayer("Mister Rodgers")
+    registerPlayer("Fred Penhar")
+    #print countPlayers()
     reportMatch(1,2)
-    print countPlayers()
+    reportMatch(3,4)
+    reportMatch(3,1)
+    playerStandings()
+    #deletePlayers()
