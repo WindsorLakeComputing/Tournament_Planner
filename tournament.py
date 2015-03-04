@@ -85,14 +85,14 @@ def playerStandings():
     """
     db = connect()
     c = db.cursor()
-    sql = ('SELECT m.winner, p.player_name, m.wins, tm.total_matches '
+    sql = ('SELECT tm.player, p.player_name, m.wins, tm.total_matches '
            'FROM ( '
-                'SELECT winner, count(match.winner) as wins '
+                'SELECT winner, count(*) as wins '
                 'FROM match '
                 'GROUP BY match.winner '
-                'ORDER BY wins DESC '
-                ') m LEFT JOIN player p ON m.winner = p.id '
-                'LEFT JOIN view_total_matches tm ON m.winner = tm.player; ')
+                ') m RIGHT JOIN view_total_matches tm ON m.winner = tm.player ' 
+                'JOIN player p on tm.player = p.id '
+                'ORDER BY m.wins DESC NULLs LAST; ')
     a_sql=('SELECT tw.winner, sum(tw.wins + tl.loses) as total_games '
           'FROM view_total_wins tw, view_total_loses tl '
 	  'WHERE tw.winner = tl.loser '
