@@ -5,7 +5,7 @@
 
 import psycopg2
 import bleach
-
+import re
 
 def connect():
     """Connect to the PostgreSQL database.  Returns a database connection."""
@@ -100,11 +100,12 @@ def playerStandings():
     b_sql=('SELECT player, total_matches FROM view_total_matches;')
     c.execute(sql)
     results = c.fetchall()
-    print results
+    #print results
     for result in results:
 	print result
     db.commit()
     db.close()
+    return results
 
 
 def reportMatch(winner, loser):
@@ -141,6 +142,23 @@ def swissPairings():
         id2: the second player's unique id
         name2: the second player's name
     """
+    dirtyPairs = []
+    pairs = ()
+    results = playerStandings()
+    print "The results are ", results
+    for i in xrange(0, len(results), 2):
+	print(str(results[i]).split(',')[:2])
+        dirtyPairs.append(str(results[i]).split(',')[:2])
+	id2, name2 = str(results[i + 1]).split(',')[:2]
+	#pairs = (id1
+        #print(results[i + 1])
+        print dirtyPairs
+
+def removeChars(aString):
+    regex = re.compile('[^a-zA-Z0-9 ]')
+    cString = regex.sub('', aString)
+    return cString
+
 
 if __name__ == '__main__':
     registerPlayer("Ben Bush")
@@ -151,5 +169,6 @@ if __name__ == '__main__':
     reportMatch(1,2)
     reportMatch(3,4)
     reportMatch(3,1)
-    playerStandings()
+    #playerStandings()
+    swissPairings()
     #deletePlayers()
