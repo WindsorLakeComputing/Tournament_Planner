@@ -17,8 +17,9 @@ def deleteMatches():
     db = connect()
     c = db.cursor()
     sql = "truncate match; ALTER SEQUENCE id RESTART WITH 1; " 
-
-    c.execute(sql)
+    a_sql = ('TRUNCATE TABLE match '
+            ' RESTART IDENTITY; ')
+    c.execute(a_sql)
     db.commit()
     db.close() 
 
@@ -26,9 +27,12 @@ def deletePlayers():
     """Remove all the player records from the database."""
     db = connect()
     c = db.cursor()
-    sql = "truncate player; ALTER SEQUENCE id RESTART WITH 1; "  
-
-    c.execute(sql)
+    sql = ('truncate player; '
+          'ALTER SEQUENCE player_id_seq RESTART WITH 1 '
+          'OWNED BY player.id; ')
+    a_sql = ('TRUNCATE TABLE player '
+            ' RESTART IDENTITY; ')
+    c.execute(a_sql)
     db.commit()
     db.close() 
 
@@ -39,10 +43,10 @@ def countPlayers():
     sql = "select count(*) from player"  
 
     c.execute(sql)
-    results = c.fetchall()
+    result = c.fetchone()
     db.commit()
     db.close()
-    return results 
+    return result[0] 
 
 def registerPlayer(name):
     """Adds a player to the tournament database.
@@ -83,16 +87,27 @@ def playerStandings():
         wins: the number of matches the player has won
         matches: the number of matches the player has played
     """
+    list_tups = []
     db = connect()
     c = db.cursor()
-    sql = ('SELECT tm.player, p.player_name, m.wins, tm.total_matches '
-           'FROM ( '
-                'SELECT winner, count(*) as wins '
-                'FROM match '
-                'GROUP BY match.winner '
-                ') m RIGHT JOIN view_total_matches tm ON m.winner = tm.player ' 
+    sql = ('CREATE OR REPLACE FUNCTION playerStandings() '
+           'RETURNS TABLE (player integer, player_name name, wins bigint, total_matches bigint) AS $$ '
+           'BEGIN '
+           'IF (SELECT count(*) FROM match) > 1 THEN '
+           	'RETURN QUERY SELECT tm.player, p.player_name, m.wins, tm.total_matches '
+           	'FROM ( '
+                	'SELECT winner, count(*) as wins '
+                	'FROM match '
+                	'GROUP BY match.winner '
+                	') m RIGHT JOIN view_total_matches tm ON m.winner = tm.player ' 
                 'JOIN player p on tm.player = p.id '
-                'ORDER BY m.wins DESC NULLs LAST; ')
+                'ORDER BY m.wins DESC NULLs LAST; '
+            'ELSE '
+                  'RETURN QUERY SELECT player.id, player.player_name, CAST(0 AS BIGINT), CAST(0 AS BIGINT)  FROM player; '
+            'END IF; '
+            'END'
+            '$$ LANGUAGE plpgsql; '
+            'SELECT playerStandings(); ')
     a_sql=('SELECT tw.winner, sum(tw.wins + tl.loses) as total_games '
           'FROM view_total_wins tw, view_total_loses tl '
 	  'WHERE tw.winner = tl.loser '
@@ -100,9 +115,16 @@ def playerStandings():
     b_sql=('SELECT player, total_matches FROM view_total_matches;')
     c.execute(sql)
     results = c.fetchall()
-    #print results
+    c_sql =('FETCH ALL IN \"<unnamed portal 1>\"; ')
+    #results = c.execute(c_sql)
+    print "results are ", results
     for result in results:
-	print result
+        print "the result has a length of ", len(result)
+	tups = (str(result).split(",")[:4])
+        print result
+        print "tups len == ", len(tups)
+        print "tups == ", tups
+        list_tups.append(result)
     db.commit()
     db.close()
     return results
@@ -142,20 +164,23 @@ def swissPairings():
         id2: the second player's unique id
         name2: the second player's name
     """
-    dirtyPairs = []
-    pairs = ()
+    calcPairs = []
     results = playerStandings()
     print "The results are ", results
     for i in xrange(0, len(results), 2):
 	print(str(results[i]).split(',')[:2])
-        dirtyPairs.append(str(results[i]).split(',')[:2])
-	id2, name2 = str(results[i + 1]).split(',')[:2]
+	
+        calcPairs.append((removeChars(str(results[i])).split(',')[:2]))
+	calcPairs.append((removeChars(str(results[i + 1])).split(',')[:2]))
+	#d2, name2 = str(results[i + 1]).split(',')[:2]
 	#pairs = (id1
         #print(results[i + 1])
-        print dirtyPairs
+    pairs = tuple(calcPairs)
+    print "The pairs are ", pairs
 
 def removeChars(aString):
-    regex = re.compile('[^a-zA-Z0-9 ]')
+    regex = re.compile('[^a-zA-Z0-9, ]')
+    print "String being cleaned is ", aString
     cString = regex.sub('', aString)
     return cString
 
@@ -165,10 +190,12 @@ if __name__ == '__main__':
     registerPlayer("Calvin Hobbs")
     registerPlayer("Mister Rodgers")
     registerPlayer("Fred Penhar")
-    #print countPlayers()
-    reportMatch(1,2)
-    reportMatch(3,4)
-    reportMatch(3,1)
+    #reportMatch(1,2)
+    #reportMatch(3,4)
+    #reportMatch(3,1)
     #playerStandings()
     swissPairings()
-    #deletePlayers()
+    deletePlayers()
+    deleteMatches()
+    print "player count is ", countPlayers()
+
