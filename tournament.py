@@ -6,6 +6,7 @@
 import psycopg2
 import bleach
 import re
+import pprint
 
 def connect():
     """Connect to the PostgreSQL database.  Returns a database connection."""
@@ -94,7 +95,7 @@ def playerStandings():
            'RETURNS TABLE (player integer, player_name name, wins bigint, total_matches bigint) AS $$ '
            'BEGIN '
            'IF (SELECT count(*) FROM match) > 1 THEN '
-           	'RETURN QUERY SELECT tm.player, p.player_name, m.wins, tm.total_matches '
+           	'RETURN QUERY SELECT tm.player, p.player_name, coalesce(m.wins, 0), tm.total_matches '
            	'FROM ( '
                 	'SELECT winner, count(*) as wins '
                 	'FROM match '
@@ -107,27 +108,46 @@ def playerStandings():
             'END IF; '
             'END'
             '$$ LANGUAGE plpgsql; '
-            'SELECT playerStandings(); ')
+            'SELECT * from playerStandings(); ')
     a_sql=('SELECT tw.winner, sum(tw.wins + tl.loses) as total_games '
           'FROM view_total_wins tw, view_total_loses tl '
 	  'WHERE tw.winner = tl.loser '
           'GROUP BY tw.winner; ')
     b_sql=('SELECT player, total_matches FROM view_total_matches;')
     c.execute(sql)
+        #print row[0]#, row[1], row[2], row[3]
     results = c.fetchall()
     c_sql =('FETCH ALL IN \"<unnamed portal 1>\"; ')
     #results = c.execute(c_sql)
-    print "results are ", results
+    #print "results are ", pprint.pprint(results)
+    '''
     for result in results:
+        print "result[0] ", type(result[0])
+        print "result[1] ", result[1]
+        r_list = list(result)
+        print "list == ", r_list[0]
         print "the result has a length of ", len(result)
-	tups = (str(result).split(",")[:4])
+	#tups = (removeChars(str(result)).split(",")[:4])
+        res = removeChars(str(result)).split(",")[:4]
+        for r in res:
+	    print "The res is, ", r
+        
+        res[0] = int(res[0])
+	res[2] = int(res[2])
+	res[3] = int(res[3])
+        res = tuple(res)
+        #r[2], res[3] = int(res[0]), int(res[2]), int(res[3])   
         print result
-        print "tups len == ", len(tups)
-        print "tups == ", tups
-        list_tups.append(result)
+        #print "tups len == ", len(tups)
+        #print "tups == ", tups
+        #list_tups.append(result)
+    	#list_tups.append(tups)
+        list_tups.append(res)
+    '''
     db.commit()
     db.close()
-    return results
+    #return results
+    return results 
 
 
 def reportMatch(winner, loser):
@@ -164,25 +184,32 @@ def swissPairings():
         id2: the second player's unique id
         name2: the second player's name
     """
-    calcPairs = []
+    pairs = []
     results = playerStandings()
     print "The results are ", results
     for i in xrange(0, len(results), 2):
 	print(str(results[i]).split(',')[:2])
 	
-        calcPairs.append((removeChars(str(results[i])).split(',')[:2]))
-	calcPairs.append((removeChars(str(results[i + 1])).split(',')[:2]))
+        #calcPairs.append((removeChars(str(results[i])).split(',')[:2]))
+	#calcPairs.append((removeChars(str(results[i + 1])).split(',')[:2]))
 	#d2, name2 = str(results[i + 1]).split(',')[:2]
 	#pairs = (id1
         #print(results[i + 1])
-    pairs = tuple(calcPairs)
+        print "first half == ", results[i][0], results[i][1]
+        pairs.append((results[i][0],results[i][1], results[i +1][0], results[i + 1][1])) 
+    #pairs = tuple(calcPairs)
     print "The pairs are ", pairs
+    return pairs
 
 def removeChars(aString):
     regex = re.compile('[^a-zA-Z0-9, ]')
+    if ((aString.startswith('\'')) or (aString.endswith('('))):
+    	aString = aString[1:]
+    if ((aString.endswith('\'')) or (aString.endswith('('))):
+    	aString = aString[:-1]
     print "String being cleaned is ", aString
-    cString = regex.sub('', aString)
-    return cString
+    #cString = regex.sub('', aString)
+    return aString
 
 
 if __name__ == '__main__':
