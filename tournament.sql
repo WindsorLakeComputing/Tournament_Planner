@@ -8,18 +8,6 @@ CREATE TABLE IF NOT EXISTS match ( winner INTEGER,
                      loser INTEGER,
 		     id SERIAL PRIMARY KEY);
 
-CREATE VIEW view_total_wins AS
-SELECT match.winner, count(match.winner) as wins 
-FROM match 
-GROUP BY match.winner 
-ORDER BY wins desc;
-
-CREATE VIEW view_total_loses AS
-SELECT match.loser, count(match.loser) as loses 
-FROM match 
-GROUP BY match.loser 
-ORDER BY loses desc;
-
 CREATE VIEW view_total_matches AS
 SELECT player, count(*) total_matches
 from
@@ -42,7 +30,7 @@ CREATE OR REPLACE FUNCTION playerStandings()
                 	SELECT winner, count(*) as wins
                 	FROM match 
                 	GROUP BY match.winner 
-                	) m RIGHT JOIN view_total_matches tm ON m.winner = tm.player 
+                      ) m RIGHT JOIN view_total_matches tm ON m.winner = tm.player 
                 JOIN player p on tm.player = p.id
                 ORDER BY m.wins DESC NULLs LAST; 
         ELSE 
