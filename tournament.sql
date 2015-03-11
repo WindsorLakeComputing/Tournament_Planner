@@ -8,6 +8,15 @@ CREATE TABLE IF NOT EXISTS match ( winner INTEGER,
                      loser INTEGER,
 		     id SERIAL PRIMARY KEY);
 
+#The following view was created by a Udacity coach:
+CREATE VIEW standing AS
+SELECT p.id as id, p.player_name as name, sum(case when p.id=m.winner then 1 else 0 end) as wins, count(m.winner) as matches
+FROM player p
+LEFT JOIN match m
+ON p.id=m.winner OR p.id=m.loser
+GROUP BY p.id
+ORDER BY wins DESC, matches DESC;
+
 CREATE VIEW view_total_matches AS
 SELECT player, count(*) total_matches
 from
