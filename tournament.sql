@@ -4,9 +4,16 @@ CREATE TABLE IF NOT EXISTS player ( player_name NAME,
                      id SERIAL PRIMARY KEY);
 
 DROP TABLE IF EXISTS match;
-CREATE TABLE IF NOT EXISTS match ( winner INTEGER,
-                     loser INTEGER,
+CREATE TABLE IF NOT EXISTS match ( winner INTEGER references player(id),
+                     loser INTEGER references player(id),
 		     id SERIAL PRIMARY KEY);
+
+CREATE VIEW view_defeats AS
+SELECT p.id, coalesce(m.loser, 0)
+FROM player p
+LEFT JOIN match m
+on p.id=m.winner
+ORDER BY p.id;
 
 #The following view was created by a Udacity coach:
 CREATE VIEW standing AS
