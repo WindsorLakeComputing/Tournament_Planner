@@ -135,4 +135,24 @@ def swissPairings():
         pairs.append((results[i][0],results[i][1], results[i +1][0], results[i + 1][1])) 
     return pairs
 
-
+ if __name__ == '__main__':
+     deletePlayers()
+     deleteMatches()
+     registerPlayer("Ben Bush")
+     registerPlayer("Calvin Hobbs")
+-    print countPlayers()
+-    #deletePlayers()
++    registerPlayer("Mister Rodgers")
++    registerPlayer("Fred Penhar")
+     registerPlayer("Joe Johnson")
+     registerPlayer("Carl Junior")
+-    print countPlayers()
+-    #deletePlayers()
++    registerPlayer("Frank Henry")
++    registerPlayer("Freddie Mercury")
++    #print countPlayers()
+     reportMatch(1,2)
+-    print countPlayers()
++    reportMatch(3,4)
++    reportMatch(3,1)
++    playerStandings()
