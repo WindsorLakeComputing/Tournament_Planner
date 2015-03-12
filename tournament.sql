@@ -15,7 +15,7 @@ LEFT JOIN match m
 on p.id=m.winner
 ORDER BY p.id;
 
-#The following view was created by a Udacity coach:
+--The following view was created by a Udacity coach:
 CREATE VIEW standing AS
 SELECT p.id as id, p.player_name as name, sum(case when p.id=m.winner then 1 else 0 end) as wins, count(m.winner) as matches
 FROM player p
@@ -23,6 +23,13 @@ LEFT JOIN match m
 ON p.id=m.winner OR p.id=m.loser
 GROUP BY p.id
 ORDER BY wins DESC, matches DESC;
+
+CREATE VIEW view_total_player_encounters
+SELECT p.id, (CASE WHEN (m.loser != p.id) THEN m.loser ELSE m.winner END) as u_player
+FROM player p
+LEFT JOIN match m
+on p.id=m.winner or p.id=m.loser
+ORDER BY p.id;
 
 CREATE VIEW view_total_matches AS
 SELECT player, count(*) total_matches
