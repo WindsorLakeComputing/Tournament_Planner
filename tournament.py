@@ -16,7 +16,7 @@ def deleteMatches():
     db = connect()
     c = db.cursor()
     sql = ('TRUNCATE TABLE match '
-            ' RESTART IDENTITY; ')
+            ' RESTART IDENTITY CASCADE; ')
             
     c.execute(sql)
     db.commit()
@@ -27,7 +27,7 @@ def deletePlayers():
     db = connect()
     c = db.cursor()
     sql = ('TRUNCATE TABLE player '
-            ' RESTART IDENTITY; ')
+            ' RESTART IDENTITY CASCADE; ')
             
     c.execute(sql)
     db.commit()
@@ -130,9 +130,48 @@ def swissPairings():
     """
     pairs = []
     results = playerStandings()
+    tot_opponents = {}    
+ 
+    db = connect()
+    c = db.cursor()
+    sql = ('SELECT * FROM view_total_opponents;')	
+    c.execute(sql)
+    r = c.fetchall()
+    db.commit()
+    db.close()
+
+    for i in r:
+        plyr = i[0]
+        opp = i[1]
+        if tot_opponents.get(plyr):
+		opps = tot_opponents.get(plyr)
+                opps.append(opp)
+                
+	else:
+		tot_opponents[plyr] = [opp]
+
+    print "the Dict is ", tot_opponents
+    print "The results are ", results
     
-    for i in xrange(0, len(results), 2):
-        pairs.append((results[i][0],results[i][1], results[i +1][0], results[i + 1][1])) 
+    for i in xrange(0, (len(results) / 2)):#, 2):
+	#print "player is ", results[i]
+	opps = tot_opponents.get(results[i][0])
+        #print "opps is ", opps
+        if ((i + 1) < len(results)):
+		print "row == ", results[i]
+ 		if (results[i + 1][0] in opps):
+			print "THIS PLAYER ", results[i + 1][0], " HAS ALREADY PLAYED with ", results[i][0]
+			for inner in range(i + 1, len(results)):
+				print "Inside FOR LOOP. Checking ", results[inner][0]
+				if results[inner][0] not in opps:
+					print "This player has not played together -> ", results[inner][0]
+					pairs.append((results[i][0],results[i][1], results[inner][0], results[inner][1]))
+					del[results[inner]]
+                                        #i -= 1 
+					break
+		else:
+        		pairs.append((results[i][0],results[i][1], results[i +1][0], results[i + 1][1]))
+			del[results[i + 1]] 
     return pairs
 
 if __name__ == '__main__':
@@ -161,4 +200,6 @@ if __name__ == '__main__':
      reportMatch(4,2)
      reportMatch(6,8)
      reportMatch(6,1)
-     playerStandings()
+     #playerStandings()
+     pairs = swissPairings()
+     print "The pairs are: ", pairs

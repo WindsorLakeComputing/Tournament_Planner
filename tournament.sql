@@ -24,12 +24,12 @@ ON p.id=m.winner OR p.id=m.loser
 GROUP BY p.id
 ORDER BY wins DESC, matches DESC;
 
-CREATE VIEW view_total_opponents
+CREATE VIEW view_total_opponents AS
 SELECT p.id, (CASE WHEN (m.loser != p.id) THEN m.loser ELSE m.winner END) as opponent 
 FROM player p
 LEFT JOIN match m
 on p.id=m.winner or p.id=m.loser
-ORDER BY p.id;
+ORDER BY p.id ASC, opponent ASC;
 
 CREATE VIEW view_total_matches AS
 SELECT player, count(*) total_matches
