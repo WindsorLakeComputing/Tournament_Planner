@@ -9,26 +9,26 @@ import bleach
 def connect():
     """Connect to the PostgreSQL database.  Returns a database connection."""
     return psycopg2.connect("dbname=tournament")
-
-
+   
 def deleteMatches():
     """Remove all the match records from the database."""
     db = connect()
     c = db.cursor()
-    sql = ('TRUNCATE TABLE match '
-            ' RESTART IDENTITY CASCADE; ')
-            
+    sql = truncateSQL("match") 
     c.execute(sql)
     db.commit()
     db.close() 
+
+def truncateSQL(tableName):
+    """Create the SQL to truncate a table"""
+    sql = "TRUNCATE TABLE %s RESTART IDENTITY CASCADE; " % tableName
+    return sql
 
 def deletePlayers():
     """Remove all the player records from the database."""
     db = connect()
     c = db.cursor()
-    sql = ('TRUNCATE TABLE player '
-            ' RESTART IDENTITY CASCADE; ')
-            
+    sql = truncateSQL("player")
     c.execute(sql)
     db.commit()
     db.close() 
@@ -38,7 +38,6 @@ def countPlayers():
     db = connect()
     c = db.cursor()
     sql = "select count(*) from player"  
-
     c.execute(sql)
     result = c.fetchone()
     db.commit()
@@ -65,7 +64,6 @@ def registerPlayer(name):
     c = db.cursor()
     sql = "insert into player (player_name) values (%s)"
     args = (cleaned_text,)
-    
     c.execute(sql, args)
     db.commit()
     db.close()    
@@ -87,13 +85,11 @@ def playerStandings():
     db = connect()
     c = db.cursor()
     sql =('SELECT * from playerStandings(); ')
-    
     c.execute(sql)
     results = c.fetchall()
     db.commit()
     db.close()
     return results 
-
 
 def reportMatch(winner, loser):
     """Records the outcome of a single match between two players.
@@ -106,13 +102,39 @@ def reportMatch(winner, loser):
     	db = connect()
     	c = db.cursor()
     	sql = ('INSERT INTO match (winner, loser) values (%s, %s); ')
-	
     	c.execute(sql, (winner, loser))
     	db.commit()
     	db.close()
     else:
 	raise Exception("winner and loser must both be of type int")
-  
+ 
+def totalOpponents():
+    """Returns a Dict of players and every opponent faced.
+ 
+       Returns: 
+        A Dict consisting of a player's id as the key, and
+       a list of player id's of the opponents the player has faced as the value.
+    """
+    tot_opponents = {}  
+    db = connect()
+    c = db.cursor()
+    sql = ('SELECT * FROM view_total_opponents;')	
+    c.execute(sql)
+    r = c.fetchall()
+    db.commit()
+    db.close()
+
+    for i in r:
+        plyr = i[0]
+        opp = i[1]
+        if tot_opponents.get(plyr):
+		#Add to the list of opponents already faced
+		opps = tot_opponents.get(plyr)
+                opps.append(opp)
+	else:
+		tot_opponents[plyr] = [opp]
+    return tot_opponents
+
 def swissPairings():
     """Returns a list of pairs of players for the next round of a match.
   
@@ -130,76 +152,22 @@ def swissPairings():
     """
     pairs = []
     results = playerStandings()
-    tot_opponents = {}    
- 
-    db = connect()
-    c = db.cursor()
-    sql = ('SELECT * FROM view_total_opponents;')	
-    c.execute(sql)
-    r = c.fetchall()
-    db.commit()
-    db.close()
+    tot_opponents = totalOpponents()    
 
-    for i in r:
-        plyr = i[0]
-        opp = i[1]
-        if tot_opponents.get(plyr):
-		opps = tot_opponents.get(plyr)
-                opps.append(opp)
-                
-	else:
-		tot_opponents[plyr] = [opp]
-
-    print "the Dict is ", tot_opponents
-    print "The results are ", results
-    
-    for i in xrange(0, (len(results) / 2)):#, 2):
-	#print "player is ", results[i]
+    for i in xrange(0, (len(results) / 2)):
 	opps = tot_opponents.get(results[i][0])
-        #print "opps is ", opps
-        if ((i + 1) < len(results)):
-		print "row == ", results[i]
- 		if (results[i + 1][0] in opps):
-			print "THIS PLAYER ", results[i + 1][0], " HAS ALREADY PLAYED with ", results[i][0]
-			for inner in range(i + 1, len(results)):
-				print "Inside FOR LOOP. Checking ", results[inner][0]
-				if results[inner][0] not in opps:
-					print "This player has not played together -> ", results[inner][0]
-					pairs.append((results[i][0],results[i][1], results[inner][0], results[inner][1]))
-					del[results[inner]]
-                                        #i -= 1 
-					break
-		else:
-        		pairs.append((results[i][0],results[i][1], results[i +1][0], results[i + 1][1]))
-			del[results[i + 1]] 
+	#if true then player results[i+ 1][0] has already played with results[i]
+        #will check next playeys in standings until find one haven't played yet. 
+ 	if (results[i + 1][0] in opps):
+		for inner in range(i + 2, len(results)):
+			#if true, then found a player who hasn't played current one.
+			if results[inner][0] not in opps:
+				pairs.append((results[i][0],results[i][1], results[inner][0], results[inner][1]))
+				#delete player that has just been matched to avoid scheduling 2 matches with
+				#same player
+				del[results[inner]]
+				break
+	else:
+       		pairs.append((results[i][0],results[i][1], results[i +1][0], results[i + 1][1]))
+		del[results[i + 1]] 
     return pairs
-
-if __name__ == '__main__':
-     deletePlayers()
-     deleteMatches()
-     registerPlayer("Ben Bush")
-     registerPlayer("Calvin Hobbs")
-     print countPlayers()
-     #deletePlayers()
-     registerPlayer("Mister Rodgers")
-     registerPlayer("Fred Penhar")
-     registerPlayer("Joe Johnson")
-     registerPlayer("Carl Junior")
-     print countPlayers()
-     #deletePlayers()
-     registerPlayer("Frank Henry")
-     registerPlayer("Freddie Mercury")
-     #print countPlayers()
-     reportMatch(1,2)
-     print countPlayers()
-     reportMatch(3,4)
-     reportMatch(5,6)
-     reportMatch(7,8)
-     reportMatch(3,1)
-     reportMatch(5,7)
-     reportMatch(4,2)
-     reportMatch(6,8)
-     reportMatch(6,1)
-     #playerStandings()
-     pairs = swissPairings()
-     print "The pairs are: ", pairs
